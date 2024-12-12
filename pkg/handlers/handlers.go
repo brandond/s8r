@@ -11,35 +11,23 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/brandond/s8r/pkg/auth/nodepassword"
 	"github.com/brandond/s8r/pkg/version"
+	"github.com/k3s-io/k3s/pkg/bootstrap"
 	"github.com/k3s-io/k3s/pkg/cli/cmds"
 	"github.com/k3s-io/k3s/pkg/daemons/config"
+	"github.com/k3s-io/k3s/pkg/etcd"
 	"github.com/k3s-io/k3s/pkg/util"
 	"github.com/pkg/errors"
 	certutil "github.com/rancher/dynamiclistener/cert"
+	"go.etcd.io/etcd/api/v3/etcdserverpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/kubectl/pkg/scheme"
 )
-
-// NodePassBootstrapper returns a node name, or http error code and error
-type NodePassBootstrapper func(req *http.Request) (string, int, error)
-
-// NodeInfo contains information on the requesting node, derived from auth creds
-// and request headers.
-type NodeInfo struct {
-	Name     string
-	Password string
-	User     user.Info
-}
-
-func NoopBootstrapper() NodePassBootstrapper {
-	return NodePassBootstrapper(func(req *http.Request) (string, int, error) {
-		return "", http.StatusBadRequest, errors.New("unsupported")
-	})
-}
 
 func CACerts(config *config.Control) http.Handler {
 	var ca []byte
@@ -75,7 +63,7 @@ func NotFound() http.Handler {
 	})
 }
 
-func ServingKubeletCert(server *config.Control, keyFile string, auth NodePassBootstrapper) http.Handler {
+func ServingKubeletCert(server *config.Control, keyFile string, auth nodepassword.NodeAuthValidator) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		nodeName, errCode, err := auth(req)
 		if err != nil {
@@ -126,7 +114,7 @@ func ServingKubeletCert(server *config.Control, keyFile string, auth NodePassBoo
 	})
 }
 
-func ClientKubeletCert(server *config.Control, keyFile string, auth NodePassBootstrapper) http.Handler {
+func ClientKubeletCert(server *config.Control, keyFile string, auth nodepassword.NodeAuthValidator) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		nodeName, errCode, err := auth(req)
 		if err != nil {
@@ -207,6 +195,31 @@ func Readyz(_ *config.Control) http.Handler {
 		resp.Header().Set("Content-Type", "text/plain")
 		resp.Header().Set("Content-Length", strconv.Itoa(len(data)))
 		resp.Write(data)
+	})
+}
+
+func Bootstrap(config *config.Control) http.Handler {
+	return bootstrap.Handler(&config.Runtime.ControlRuntimeBootstrap)
+}
+
+func DBInfo(config *config.Control) http.Handler {
+	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet {
+			util.SendError(fmt.Errorf("method not allowed"), resp, req, http.StatusMethodNotAllowed)
+			return
+		}
+
+		clientAddr, _, _ := net.SplitHostPort(req.RemoteAddr)
+		members := &clientv3.MemberListResponse{Members: []*etcdserverpb.Member{{PeerURLs: []string{"https://" + clientAddr + ":2380"}, ClientURLs: []string{"https://" + clientAddr + ":2379"}}}}
+		//if err != nil {
+		//	util.SendError(errors.Wrap(err, "failed to get etcd MemberList"), resp, req, http.StatusInternalServerError)
+		//	return
+		//}
+
+		resp.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(resp).Encode(&etcd.Members{
+			Members: members.Members,
+		})
 	})
 }
 

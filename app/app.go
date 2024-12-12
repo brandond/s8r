@@ -5,7 +5,8 @@ import (
 
 	"github.com/brandond/s8r/pkg/server"
 	"github.com/brandond/s8r/pkg/version"
-	"github.com/urfave/cli/v2"
+	"github.com/k3s-io/k3s/pkg/cli/cmds"
+	"github.com/urfave/cli"
 )
 
 func init() {
@@ -15,12 +16,13 @@ func init() {
 
 func New() *cli.App {
 	s := server.Server{}
+	ServerConfig := cmds.ServerConfig
 	return &cli.App{
-		Name:            "s8r",
-		Usage:           "Standalone supervisor API for K3s and RKE2",
-		Action:          s.Run,
-		Version:         fmt.Sprintf("%s (%.8s)", version.GitVersion, version.GitCommit),
-		HideHelpCommand: true,
+		Name:     "s8r",
+		Usage:    "Standalone supervisor API for K3s and RKE2",
+		Action:   s.Run,
+		Version:  fmt.Sprintf("%s (%.8s)", version.GitVersion, version.GitCommit),
+		HideHelp: true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "data-dir",
@@ -43,6 +45,55 @@ func New() *cli.App {
 				Name:        "debug",
 				Destination: &s.Debug,
 				Usage:       "Enable debug logging",
+			},
+			&cli.StringFlag{
+				Name:        "egress-selector-mode",
+				Usage:       "(networking) One of 'agent', 'cluster', 'pod', 'disabled'",
+				Destination: &ServerConfig.EgressSelectorMode,
+				Value:       "agent",
+			},
+			cmds.ServerToken,
+			&cli.StringFlag{
+				Name:        "agent-token",
+				Usage:       "(cluster) Shared secret used to join agents to the cluster, but not servers",
+				Destination: &ServerConfig.AgentToken,
+				EnvVar:      version.ProgramUpper + "_AGENT_TOKEN",
+			},
+			cmds.ClusterCIDR,
+			cmds.ServiceCIDR,
+			cmds.ServiceNodePortRange,
+			cmds.ClusterDNS,
+			cmds.ClusterDomain,
+			&cli.BoolFlag{
+				Name:        "disable-network-policy",
+				Usage:       "(components) Disable " + version.Program + " default network policy controller",
+				Destination: &ServerConfig.DisableNPC,
+			},
+			&cli.BoolFlag{
+				Name:        "disable-helm-controller",
+				Usage:       "(components) Disable Helm controller",
+				Destination: &ServerConfig.DisableHelmController,
+			},
+			&cli.BoolFlag{
+				Name:        "disable-controller-manager",
+				Hidden:      true,
+				Usage:       "(experimental/components) Disable running kube-controller-manager",
+				Destination: &ServerConfig.DisableControllerManager,
+			},
+			&cli.BoolFlag{
+				Name:        "embedded-registry",
+				Usage:       "(components) Enable embedded distributed container registry; requires use of embedded containerd; when enabled agents will also listen on the supervisor port",
+				Destination: &ServerConfig.EmbeddedRegistry,
+			},
+			&cli.BoolFlag{
+				Name:        "supervisor-metrics",
+				Usage:       "(experimental/components) Enable serving " + version.Program + " internal metrics on the supervisor port; when enabled agents will also listen on the supervisor port",
+				Destination: &ServerConfig.SupervisorMetrics,
+			},
+			&cli.BoolFlag{
+				Name:        "secrets-encryption",
+				Usage:       "Enable secret encryption at rest",
+				Destination: &ServerConfig.EncryptSecrets,
 			},
 		},
 	}

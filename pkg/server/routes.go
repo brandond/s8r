@@ -3,7 +3,9 @@ package server
 import (
 	"net/http"
 
+	"github.com/brandond/s8r/pkg/auth/nodepassword"
 	"github.com/brandond/s8r/pkg/handlers"
+	"github.com/brandond/s8r/pkg/version"
 	"github.com/gorilla/mux"
 	"github.com/k3s-io/k3s/pkg/server/auth"
 	"k8s.io/apiserver/pkg/authentication/user"
@@ -20,15 +22,15 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 
 func (s *Server) newRouter() error {
 	prefix := "/{apiroot:v1-(?:k3s|rke2)}"
-	nodeAuth := handlers.NoopBootstrapper()
+	nodeAuth := nodepassword.GetNodeAuthValidator(s.ctx, s.config)
 
 	authed := mux.NewRouter().SkipClean(true)
 	authed.NotFoundHandler = handlers.NotFound()
-	authed.Use(auth.HasRole(s.config, "k3s:agent", "rke2:agent", user.NodesGroup, bootstrapapi.BootstrapDefaultGroup))
+	authed.Use(auth.HasRole(s.config, version.Program+":agent", user.NodesGroup, bootstrapapi.BootstrapDefaultGroup))
 	authed.Handle(prefix+"/serving-kubelet.crt", handlers.ServingKubeletCert(s.config, s.config.Runtime.ServingKubeletKey, nodeAuth))
 	authed.Handle(prefix+"/client-kubelet.crt", handlers.ClientKubeletCert(s.config, s.config.Runtime.ClientKubeletKey, nodeAuth))
 	authed.Handle(prefix+"/client-kube-proxy.crt", handlers.File(s.config.Runtime.ClientKubeProxyCert, s.config.Runtime.ClientKubeProxyKey))
-	authed.Handle(prefix+"/client-(product:(?:k3s|rke2))-controller.crt", handlers.File(s.config.Runtime.ClientK3sControllerCert, s.config.Runtime.ClientK3sControllerKey))
+	authed.Handle(prefix+"/client-{product:(?:k3s|rke2)}-controller.crt", handlers.File(s.config.Runtime.ClientK3sControllerCert, s.config.Runtime.ClientK3sControllerKey))
 	authed.Handle(prefix+"/client-ca.crt", handlers.File(s.config.Runtime.ClientCA))
 	authed.Handle(prefix+"/server-ca.crt", handlers.File(s.config.Runtime.ServerCA))
 	authed.Handle(prefix+"/apiservers", handlers.APIServers(s.config))
@@ -40,8 +42,14 @@ func (s *Server) newRouter() error {
 	nodeAuthed.Use(auth.HasRole(s.config, user.NodesGroup))
 	nodeAuthed.Handle(prefix+"/connect", s.config.Runtime.Tunnel)
 
+	serverAuthed := mux.NewRouter().SkipClean(true)
+	serverAuthed.NotFoundHandler = nodeAuthed
+	serverAuthed.Use(auth.HasRole(s.config, version.Program+":server"))
+	serverAuthed.Handle(prefix+"/server-bootstrap", handlers.Bootstrap(s.config))
+	serverAuthed.Handle("/db/info", handlers.DBInfo(s.config))
+
 	router := mux.NewRouter().SkipClean(true)
-	router.NotFoundHandler = nodeAuthed
+	router.NotFoundHandler = serverAuthed
 	router.Handle("/cacerts", handlers.CACerts(s.config))
 	router.Handle("/ping", handlers.Ping())
 

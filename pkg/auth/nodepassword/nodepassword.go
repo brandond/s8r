@@ -1,0 +1,167 @@
+package nodepassword
+
+import (
+	"context"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/brandond/s8r/pkg/version"
+	"github.com/k3s-io/k3s/pkg/daemons/config"
+	"github.com/k3s-io/k3s/pkg/nodepassword"
+	k3snodepassword "github.com/k3s-io/k3s/pkg/nodepassword"
+	"github.com/pkg/errors"
+	coreclient "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
+	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/kubernetes/pkg/auth/nodeidentifier"
+)
+
+var identifier = nodeidentifier.NewDefaultNodeIdentifier()
+
+// NodeAuthValidator returns a node name, or http error code and error
+type NodeAuthValidator func(req *http.Request) (string, int, error)
+
+// nodeInfo contains information on the requesting node, derived from auth creds
+// and request headers.
+type nodeInfo struct {
+	Name     string
+	Password string
+	Product  string
+	User     user.Info
+}
+
+func GetNodeAuthValidator(ctx context.Context, config *config.Control) NodeAuthValidator {
+	runtime := config.Runtime
+	deferredNodes := map[string]bool{}
+	var secretClient coreclient.SecretController
+	var nodeClient coreclient.NodeController
+	var mu sync.Mutex
+
+	return func(req *http.Request) (string, int, error) {
+		node, err := getNodeInfo(req)
+		if err != nil {
+			return "", http.StatusBadRequest, err
+		}
+
+		nodeName, isNodeAuth := identifier.NodeIdentity(node.User)
+		if isNodeAuth && nodeName != node.Name {
+			return "", http.StatusBadRequest, errors.New("header node name does not match auth node name")
+		}
+
+		if secretClient == nil || nodeClient == nil {
+			if runtime.Core != nil {
+				// initialize the client if we can
+				secretClient = runtime.Core.Core().V1().Secret()
+				nodeClient = runtime.Core.Core().V1().Node()
+			} else if !isNodeAuth {
+				// If the request didn't use Node Identity auth,
+				// defer node password verification until an apiserver joins the cluster.
+				return verifyRemotePassword(ctx, config, &mu, deferredNodes, node)
+			}
+		}
+
+		// verify that the node exists, if using Node Identity auth
+		if err := verifyNode(ctx, nodeClient, node); err != nil {
+			return "", http.StatusUnauthorized, err
+		}
+
+		// verify that the node password secret matches, or create it if it does not
+		if err := k3snodepassword.Ensure(secretClient, node.Name, node.Password); err != nil {
+			// if the verification failed, reject the request
+			if errors.Is(err, k3snodepassword.ErrVerifyFailed) {
+				return "", http.StatusForbidden, err
+			}
+			// If verification failed due to an error creating the node password secret, allow
+			// the request, but retry verification until the outage is resolved.  This behavior
+			// allows nodes to join the cluster during outages caused by validating webhooks
+			// blocking secret creation - if the outage requires new nodes to join in order to
+			// run the webhook pods, we must fail open here to resolve the outage.
+			return verifyRemotePassword(ctx, config, &mu, deferredNodes, node)
+		}
+
+		return node.Name, http.StatusOK, nil
+	}
+}
+
+func getNodeInfo(req *http.Request) (*nodeInfo, error) {
+	user, ok := request.UserFrom(req.Context())
+	if !ok {
+		return nil, errors.New("auth user not set")
+	}
+
+	var nodeName, product string
+	for _, p := range version.Products {
+		if v := req.Header.Get(p + "-Node-Name"); v != "" {
+			nodeName = v
+			product = p
+		}
+	}
+	if nodeName == "" {
+		return nil, errors.New("node name not set")
+	}
+
+	nodePassword := req.Header.Get(product + "-Node-Password")
+	if nodePassword == "" {
+		return nil, errors.New("node password not set")
+	}
+
+	return &nodeInfo{
+		Name:     strings.ToLower(nodeName),
+		Password: nodePassword,
+		Product:  product,
+		User:     user,
+	}, nil
+}
+
+func verifyRemotePassword(ctx context.Context, config *config.Control, mu *sync.Mutex, deferredNodes map[string]bool, node *nodeInfo) (string, int, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if _, ok := deferredNodes[node.Name]; !ok {
+		deferredNodes[node.Name] = true
+		go ensureSecret(ctx, config, node)
+		logrus.Infof("Password verification deferred for node %s", node.Name)
+	}
+
+	return node.Name, http.StatusOK, nil
+}
+
+func verifyNode(ctx context.Context, nodeClient coreclient.NodeController, node *nodeInfo) error {
+	if nodeName, isNodeAuth := identifier.NodeIdentity(node.User); isNodeAuth {
+		if _, err := nodeClient.Cache().Get(nodeName); err != nil {
+			return errors.Wrap(err, "unable to verify node identity")
+		}
+	}
+	return nil
+}
+
+func ensureSecret(ctx context.Context, config *config.Control, node *nodeInfo) {
+	runtime := config.Runtime
+	_ = wait.PollUntilContextCancel(ctx, time.Second*5, true, func(ctx context.Context) (bool, error) {
+		if runtime.Core != nil {
+			secretClient := runtime.Core.Core().V1().Secret()
+			// This is consistent with events attached to the node generated by the kubelet
+			// https://github.com/kubernetes/kubernetes/blob/612130dd2f4188db839ea5c2dea07a96b0ad8d1c/pkg/kubelet/kubelet.go#L479-L485
+			nodeRef := &corev1.ObjectReference{
+				Kind:      "Node",
+				Name:      node.Name,
+				UID:       types.UID(node.Name),
+				Namespace: "",
+			}
+			if err := nodepassword.Ensure(secretClient, node.Name, node.Password); err != nil {
+				runtime.Event.Eventf(nodeRef, corev1.EventTypeWarning, "NodePasswordValidationFailed", "Deferred node password secret validation failed: %v", err)
+				// Return true to stop polling if the password verification failed; only retry on secret creation errors.
+				return errors.Is(err, nodepassword.ErrVerifyFailed), nil
+			}
+			runtime.Event.Event(nodeRef, corev1.EventTypeNormal, "NodePasswordValidationComplete", "Deferred node password secret validation complete")
+			return true, nil
+		}
+		return false, nil
+	})
+}
