@@ -424,8 +424,8 @@ github.com/k3s-io/etcd/raft/v3 v3.5.16-k3s1 h1:nD/YzAeIbEcSkXAQFRwAs/2zc2vXAkKmQ
 github.com/k3s-io/etcd/raft/v3 v3.5.16-k3s1/go.mod h1:P4UP14AxofMJ/54boWilabqqWoW9eLodl6I5GdGzazI=
 github.com/k3s-io/etcd/server/v3 v3.5.16-k3s1 h1:9c0DChFw6WRz6r+eCuVLBltZcRwT6h1l79biTPuAGR0=
 github.com/k3s-io/etcd/server/v3 v3.5.16-k3s1/go.mod h1:ynhyZZpdDp1Gq49jkUg5mfkDWZwXnn3eIqCqtJnrD/s=
-github.com/k3s-io/k3s v1.31.4-0.20241211010154-1ac966b46a50 h1:XhKKU9OARqpMyqLyBpMsOyut9IdWz8asQJ7g0rd0tTs=
-github.com/k3s-io/k3s v1.31.4-0.20241211010154-1ac966b46a50/go.mod h1:OuOyYxpnZD0q2zJ5dwrRzLfT/0Y3seKUN8gYd7Z+fLI=
+github.com/k3s-io/k3s v1.31.4-rc1.0.20241212151522-a562d090b05c h1:h+pkPcmQJOjBYaH8dNpnJrAq00MO1m0QinAy2HXX/EY=
+github.com/k3s-io/k3s v1.31.4-rc1.0.20241212151522-a562d090b05c/go.mod h1:0ueRyLPstBdXwdbWd9E4AHGAgRI00s5P12BQyw2JQBQ=
 github.com/k3s-io/kine v0.13.5 h1:bVTcxCHJVUqeyz0mJenO+WFHkxtgD2aRwLt1JcJ0pq8=
 github.com/k3s-io/kine v0.13.5/go.mod h1:OIG+kPc9cU+NDHnVm+aR0PyZYExdZWU+vlJynhH4haU=
 github.com/k3s-io/klog/v2 v2.120.1-k3s1 h1:7twAHPFpZA21KdMnMNnj68STQMPldAxF2Zsaol57dxw=
@@ -1182,8 +1182,8 @@ honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWh
 honnef.co/go/tools v0.0.0-20190106161140-3f1c8253044a/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.1-2019.2.3/go.mod h1:a3bituU0lyd329TUQxRnasdCoJDkEUEAqEt0JzvZhAg=
-k8s.io/cri-client v0.31.3 h1:9ZwddaNJomqkTBYQqSmB+Ccns3beY4HyYDwmRtWTCJM=
-k8s.io/cri-client v0.31.3/go.mod h1:klbWiYkOatOQOkXOYZMZMGSTM8q9eC/efsYGuXcgPes=
+k8s.io/cri-client v0.31.4 h1:mA70Ff3GnFedZX0ObF38kPHes8Iv7tiQirh961wKaCA=
+k8s.io/cri-client v0.31.4/go.mod h1:s4GmpQvR2X061p7TESE8xju7Au4WTbNYDz1+BySxzgI=
 k8s.io/kube-openapi v0.0.0-20240903163716-9e1beecbcb38 h1:1dWzkmJrrprYvjGwh9kEUxmcUV/CtNU8QM7h1FLWQOo=
 k8s.io/kube-openapi v0.0.0-20240903163716-9e1beecbcb38/go.mod h1:coRQXBK9NxO98XUv3ZD6AK3xzHCxV6+b7lrquKwaKzA=
 k8s.io/utils v0.0.0-20240902221715-702e33fdd3c3 h1:b2FmK8YH+QEwq/Sy2uAEhmqL5nPfGYbJOcaqjeYYZoA=

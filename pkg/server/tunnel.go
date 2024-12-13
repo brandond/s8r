@@ -12,6 +12,9 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/request"
 )
 
+// setupTunnel sets up an endpoint to host the remotedialer websocket tunnel. We
+// don't actually do anything with this on our side, but other nodes will throw
+// errors if they can't make the websocket connection, so we need to allow it.
 func setupTunnel(ctx context.Context, cfg *config.Control) (http.Handler, error) {
 	return &tunnelServer{
 		config: cfg,
@@ -34,8 +37,8 @@ func authorizer(req *http.Request) (clientKey string, authed bool, err error) {
 		return "", false, nil
 	}
 
-	if strings.HasPrefix(user.GetName(), "system:node:") {
-		return strings.TrimPrefix(user.GetName(), "system:node:"), true, nil
+	if nodeName, ok := strings.CutPrefix(user.GetName(), "system:node:"); ok {
+		return nodeName, true, nil
 	}
 
 	return "", false, nil

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto"
 	"crypto/x509"
 	"encoding/json"
@@ -21,13 +22,15 @@ import (
 	"github.com/pkg/errors"
 	certutil "github.com/rancher/dynamiclistener/cert"
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/kubectl/pkg/scheme"
 )
+
+type ETCDMemberGetter func(ctx context.Context, remoteAddr string) []*etcdserverpb.Member
+type APIServerAddressGetter func(ctx context.Context) []string
 
 func CACerts(config *config.Control) http.Handler {
 	var ca []byte
@@ -169,9 +172,9 @@ func File(fileName ...string) http.Handler {
 	})
 }
 
-func APIServers(server *config.Control) http.Handler {
+func APIServers(server *config.Control, getEndpoints APIServerAddressGetter) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		endpoints := []string{}
+		endpoints := getEndpoints(req.Context())
 		resp.Header().Set("content-type", "application/json")
 		if err := json.NewEncoder(resp).Encode(endpoints); err != nil {
 			util.SendError(errors.Wrap(err, "failed to encode apiserver endpoints"), resp, req, http.StatusInternalServerError)
@@ -202,23 +205,17 @@ func Bootstrap(config *config.Control) http.Handler {
 	return bootstrap.Handler(&config.Runtime.ControlRuntimeBootstrap)
 }
 
-func DBInfo(config *config.Control) http.Handler {
+func DBInfo(config *config.Control, getMembers ETCDMemberGetter) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			util.SendError(fmt.Errorf("method not allowed"), resp, req, http.StatusMethodNotAllowed)
 			return
 		}
 
-		clientAddr, _, _ := net.SplitHostPort(req.RemoteAddr)
-		members := &clientv3.MemberListResponse{Members: []*etcdserverpb.Member{{PeerURLs: []string{"https://" + clientAddr + ":2380"}, ClientURLs: []string{"https://" + clientAddr + ":2379"}}}}
-		//if err != nil {
-		//	util.SendError(errors.Wrap(err, "failed to get etcd MemberList"), resp, req, http.StatusInternalServerError)
-		//	return
-		//}
-
+		members := getMembers(req.Context(), req.RemoteAddr)
 		resp.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(resp).Encode(&etcd.Members{
-			Members: members.Members,
+			Members: members,
 		})
 	})
 }

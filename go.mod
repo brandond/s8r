@@ -56,7 +56,7 @@ replace (
 	sigs.k8s.io/cri-tools => github.com/k3s-io/cri-tools v1.31.0-k3s2
 )
 
-require github.com/k3s-io/k3s v1.31.4-0.20241211010154-1ac966b46a50 // release-1.31
+require github.com/k3s-io/k3s v1.31.4-rc1.0.20241212151522-a562d090b05c
 
 require (
 	github.com/gorilla/mux v1.8.1
@@ -66,13 +66,17 @@ require (
 	github.com/rancher/wrangler/v3 v3.0.0-rc2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli v1.22.15
+	go.etcd.io/etcd/api/v3 v3.5.16
+	go.etcd.io/etcd/client/pkg/v3 v3.5.16
 	go.etcd.io/etcd/client/v3 v3.5.16
-	k8s.io/api v0.31.3
-	k8s.io/apimachinery v0.31.3
-	k8s.io/apiserver v0.31.3
+	go.uber.org/zap v1.27.0
+	google.golang.org/grpc v1.68.0
+	k8s.io/api v0.31.4
+	k8s.io/apimachinery v0.31.4
+	k8s.io/apiserver v0.31.4
 	k8s.io/cluster-bootstrap v0.0.0
-	k8s.io/component-base v0.31.3
-	k8s.io/kubectl v0.31.3
+	k8s.io/component-base v0.31.4
+	k8s.io/kubectl v0.31.4
 	k8s.io/kubernetes v1.31.2
 	k8s.io/utils v0.0.0-20240902221715-702e33fdd3c3
 )
@@ -328,8 +332,6 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xiang90/probing v0.0.0-20221125231312-a49e3df8f510 // indirect
 	go.etcd.io/bbolt v1.3.11 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.16 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.5.16 // indirect
 	go.etcd.io/etcd/client/v2 v2.305.16 // indirect
 	go.etcd.io/etcd/etcdutl/v3 v3.5.13 // indirect
 	go.etcd.io/etcd/pkg/v3 v3.5.16 // indirect
@@ -350,7 +352,6 @@ require (
 	go.uber.org/fx v1.20.1 // indirect
 	go.uber.org/mock v0.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.27.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.20.0 // indirect
@@ -366,7 +367,6 @@ require (
 	google.golang.org/genproto v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
-	google.golang.org/grpc v1.68.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
@@ -375,26 +375,26 @@ require (
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.31.3 // indirect
+	k8s.io/apiextensions-apiserver v0.31.4 // indirect
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible // indirect
-	k8s.io/cloud-provider v0.31.3 // indirect
-	k8s.io/component-helpers v0.31.3 // indirect
+	k8s.io/cloud-provider v0.31.4 // indirect
+	k8s.io/component-helpers v0.31.4 // indirect
 	k8s.io/controller-manager v0.25.4 // indirect
 	k8s.io/cri-api v0.32.0-alpha.0 // indirect
-	k8s.io/cri-client v0.31.3 // indirect
+	k8s.io/cri-client v0.31.4 // indirect
 	k8s.io/csi-translation-lib v0.0.0 // indirect
 	k8s.io/dynamic-resource-allocation v0.0.0 // indirect
 	k8s.io/endpointslice v0.0.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kms v0.0.0 // indirect
-	k8s.io/kube-aggregator v0.31.3 // indirect
+	k8s.io/kube-aggregator v0.31.4 // indirect
 	k8s.io/kube-controller-manager v0.0.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20240903163716-9e1beecbcb38 // indirect
 	k8s.io/kube-proxy v0.0.0 // indirect
 	k8s.io/kube-scheduler v0.0.0 // indirect
-	k8s.io/kubelet v0.31.3 // indirect
+	k8s.io/kubelet v0.31.4 // indirect
 	k8s.io/metrics v0.0.0 // indirect
-	k8s.io/mount-utils v0.31.3 // indirect
+	k8s.io/mount-utils v0.31.4 // indirect
 	k8s.io/pod-security-admission v0.0.0 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.30.3 // indirect

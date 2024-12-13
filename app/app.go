@@ -16,7 +16,7 @@ func init() {
 
 func New() *cli.App {
 	s := server.Server{}
-	ServerConfig := cmds.ServerConfig
+	ServerConfig := &cmds.ServerConfig
 	return &cli.App{
 		Name:     "s8r",
 		Usage:    "Standalone supervisor API for K3s and RKE2",
@@ -65,11 +65,6 @@ func New() *cli.App {
 			cmds.ClusterDNS,
 			cmds.ClusterDomain,
 			&cli.BoolFlag{
-				Name:        "disable-network-policy",
-				Usage:       "(components) Disable " + version.Program + " default network policy controller",
-				Destination: &ServerConfig.DisableNPC,
-			},
-			&cli.BoolFlag{
 				Name:        "disable-helm-controller",
 				Usage:       "(components) Disable Helm controller",
 				Destination: &ServerConfig.DisableHelmController,
@@ -90,6 +85,7 @@ func New() *cli.App {
 				Usage:       "(experimental/components) Enable serving " + version.Program + " internal metrics on the supervisor port; when enabled agents will also listen on the supervisor port",
 				Destination: &ServerConfig.SupervisorMetrics,
 			},
+			cmds.EnablePProfFlag,
 			&cli.BoolFlag{
 				Name:        "secrets-encryption",
 				Usage:       "Enable secret encryption at rest",
