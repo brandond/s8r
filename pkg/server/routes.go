@@ -29,7 +29,7 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) newRouter() error {
-	prefix := "/{apiroot:v1-(?:k3s|rke2)}"
+	prefix := "/{apiroot:v1-[[:alnum:]]+}"
 	nodeAuth := nodepassword.GetNodeAuthValidator(s.ctx, s.config)
 	apiGetter, etcdGetter, err := s.infoGetters()
 	if err != nil {
@@ -42,7 +42,7 @@ func (s *Server) newRouter() error {
 	authed.Handle(prefix+"/serving-kubelet.crt", handlers.ServingKubeletCert(s.config, s.config.Runtime.ServingKubeletKey, nodeAuth))
 	authed.Handle(prefix+"/client-kubelet.crt", handlers.ClientKubeletCert(s.config, s.config.Runtime.ClientKubeletKey, nodeAuth))
 	authed.Handle(prefix+"/client-kube-proxy.crt", handlers.File(s.config.Runtime.ClientKubeProxyCert, s.config.Runtime.ClientKubeProxyKey))
-	authed.Handle(prefix+"/client-{product:(?:k3s|rke2)}-controller.crt", handlers.File(s.config.Runtime.ClientK3sControllerCert, s.config.Runtime.ClientK3sControllerKey))
+	authed.Handle(prefix+"/client-{product:[[:alnum:]]+}-controller.crt", handlers.ClientControllerCert(s.config, s.config.Runtime.ClientK3sControllerKey))
 	authed.Handle(prefix+"/client-ca.crt", handlers.File(s.config.Runtime.ClientCA))
 	authed.Handle(prefix+"/server-ca.crt", handlers.File(s.config.Runtime.ServerCA))
 	authed.Handle(prefix+"/apiservers", handlers.APIServers(s.config, apiGetter))

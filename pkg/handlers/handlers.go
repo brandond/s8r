@@ -14,6 +14,7 @@ import (
 
 	"github.com/brandond/s8r/pkg/auth/nodepassword"
 	"github.com/brandond/s8r/pkg/version"
+	"github.com/gorilla/mux"
 	"github.com/k3s-io/k3s/pkg/bootstrap"
 	"github.com/k3s-io/k3s/pkg/cli/cmds"
 	"github.com/k3s-io/k3s/pkg/daemons/config"
@@ -64,6 +65,36 @@ func NotFound() http.Handler {
 		serr := apierrors.NewNotFound(schema.GroupResource{}, req.URL.Path)
 		responsewriters.ErrorNegotiated(serr, scheme.Codecs.WithoutConversion(), schema.GroupVersion{}, resp, req)
 	})
+}
+
+func ClientControllerCert(server *config.Control, keyFile string) http.Handler {
+	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		caCerts, caKey, key, err := getCACertAndKeys(server.Runtime.ClientCA, server.Runtime.ClientCAKey, keyFile)
+		if err != nil {
+			util.SendError(err, resp, req)
+			return
+		}
+
+		product := mux.Vars(req)["product"]
+		cert, err := certutil.NewSignedCert(certutil.Config{
+			CommonName: "system:" + product + "-controller",
+			Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}, key, caCerts[0], caKey)
+		if err != nil {
+			util.SendError(err, resp, req)
+			return
+		}
+
+		keyBytes, err := os.ReadFile(keyFile)
+		if err != nil {
+			http.Error(resp, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		resp.Write(util.EncodeCertsPEM(cert, caCerts))
+		resp.Write(keyBytes)
+	})
+
 }
 
 func ServingKubeletCert(server *config.Control, keyFile string, auth nodepassword.NodeAuthValidator) http.Handler {
